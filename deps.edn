@@ -1,0 +1,5 @@
+{:deps {org.clojure/clojure {:mvn/version "1.10.1"}
+        org.clojure/data.csv {:mvn/version "1.0.0"}
+        juxt/crux-core {:mvn/version "20.05-1.8.4-alpha"}
+        clj-http {:mvn/version "3.10.0"}
+        metosin/jsonista {:mvn/version "0.2.6"}}}
