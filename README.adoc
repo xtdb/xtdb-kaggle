@@ -1,0 +1,71 @@
+= Crux Kaggle
+
+A small Crux utility to download CSV datasets from https://kaggle.com[Kaggle] and turn them into Crux transaction operations.
+
+At the moment, it's only got a transformer for one dataset: https://www.kaggle.com/tmdb/tmdb-movie-metadata.
+If you do implement transformers for others, please do submit them as PRs!
+
+== Setup
+
+`crux-kaggle` is a REPL based tool at the moment. To get set up:
+
+* Clone the repo
+* Get yourself a Kaggle API key file - create an account, head to your account settings and download an API key JSON file
+* Set a `KAGGLE_KEY_FILE` environment variable pointing to the key file
+* Start a REPL and connect to it in your usual way.
+
+Then, find yourself an interesting dataset on https://kaggle.com[Kaggle]
+
+You need to tell `crux-kaggle` which files you'd like to download, and then how to turn each file into Crux operations - this is done using multimethods.
+
+Using that movie dataset as an example - we have an `:owner-slug` of `"tmdb"`, a `:dataset-slug` of `"tmdb-movie-metadata"`, and two files: `"tmdb_5000_movies.csv"` and `"tmdb_5000_credits.csv"`.
+
+We define `dataset-file-names` to specify the files, and one instance of `csv-row->ops-fn` for each file:
+
+[source,clojure]
+----
+(defmethod dataset-file-names ["tmdb" "tmdb-movie-metadata"] [_]
+  #{"tmdb_5000_movies.csv" "tmdb_5000_credits.csv"})
+
+(defmethod csv-row->ops-fn ["tmdb" "tmdb-movie-metadata" "tmdb_5000_movies.csv"] [_]
+  (fn [{:strs [id title runtime budget revenue keywords genres] :as row}]
+    [[:crux.tx/put {:crux.db/id (keyword (name 'tmdb.movie) id)
+                    :tmdb/type :movie
+                    :tmdb.movie/id (Long/parseLong id)
+                    :tmdb.movie/title title
+                    :tmdb.movie/budget (some-> budget Long/parseLong)
+                    :tmdb.movie/revenue (some-> revenue Long/parseLong)
+                    :tmdb.movie/keywords (->> (json/read-value keywords)
+                                              (into #{} (map #(get % "name"))))
+                    :tmdb.movie/genres (->> (json/read-value genres)
+                                            (into #{} (map #(get % "name"))))}]]))
+
+(defmethod csv-row->ops-fn ["tmdb" "tmdb-movie-metadata" "tmdb_5000_credits.csv"] [_]
+  (fn [{:strs [movie_id cast] :as row}]
+    (let [movie-id (Long/parseLong movie_id)]
+      (->> (for [{cast-name "name", :strs [credit_id id character]} (json/read-value cast)]
+             [[:crux.tx/put {:crux.db/id (keyword (name 'tmdb.cast) (str id))
+                             :tmdb/type :cast
+                             :tmdb.cast/id id
+                             :tmdb.cast/name cast-name}]
+              [:crux.tx/put {:crux.db/id (keyword (name 'tmdb.credit) credit_id)
+                             :tmdb/type :credit
+                             :tmdb.movie/id movie-id
+                             :tmdb.cast/id id
+                             :tmdb.cast/character character}]])
+           (apply concat)))))
+----
+
+Then, we can stream the dataset to a local file of Crux transaction ops using:
+
+[source,clojure]
+----
+(->> (dataset->ops {:owner-slug "tmdb", :dataset-slug "tmdb-movie-metadata"})
+     (ops->stream (io/output-stream (io/file "/tmp/movies.edn"))))
+----
+
+Have fun!
+
+== Licence
+
+Distributed under the Eclipse Public License, the same as Clojure.
