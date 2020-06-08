@@ -88,8 +88,8 @@
                              :tmdb.cast/name cast-name}]
               [:crux.tx/put {:crux.db/id (keyword (name 'tmdb) (str "credit-" credit_id))
                              :tmdb/type :credit
-                             :tmdb.movie/id movie-id
-                             :tmdb.cast/id id
+                             :tmdb.movie/id (keyword (name 'tmdb) (str "movie-" movie-id))
+                             :tmdb.cast/id (keyword (name 'tmdb) (str "cast-" id))
                              :tmdb.cast/character character}]])
            (apply concat)))))
 
