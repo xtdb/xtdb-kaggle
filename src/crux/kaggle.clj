@@ -78,7 +78,8 @@
        :tmdb.movie/keywords (->> (json/read-value keywords)
                                  (into #{} (map #(get % "name"))))
        :tmdb.movie/genres (->> (json/read-value genres)
-                               (into #{} (map #(get % "name"))))}
+                               (into #{} (map #(get % "name"))))
+       :tmdb.movie/release_date release_date}
       (when-not (empty? release_date)
         (instant/read-instant-date release_date))]]))
 
