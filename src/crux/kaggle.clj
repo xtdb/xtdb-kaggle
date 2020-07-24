@@ -3,7 +3,8 @@
             [crux.api :as crux]
             [jsonista.core :as json]
             [clojure.java.io :as io]
-            [clojure.data.csv :as csv])
+            [clojure.data.csv :as csv]
+            [clojure.instant :as instant])
   (:import (java.io File)
            (clojure.lang IReduceInit)
            (java.util.zip ZipInputStream)))
@@ -66,17 +67,20 @@
   #{"tmdb_5000_movies.csv" "tmdb_5000_credits.csv"})
 
 (defmethod csv-row->ops-fn ["tmdb" "tmdb-movie-metadata" "tmdb_5000_movies.csv"] [_]
-  (fn [{:strs [id title runtime budget revenue keywords genres] :as row}]
-    [[:crux.tx/put {:crux.db/id (keyword (name 'tmdb) (str "movie-" id))
-                    :tmdb/type :movie
-                    :tmdb.movie/id (Long/parseLong id)
-                    :tmdb.movie/title title
-                    :tmdb.movie/budget (some-> budget Long/parseLong)
-                    :tmdb.movie/revenue (some-> revenue Long/parseLong)
-                    :tmdb.movie/keywords (->> (json/read-value keywords)
-                                              (into #{} (map #(get % "name"))))
-                    :tmdb.movie/genres (->> (json/read-value genres)
-                                            (into #{} (map #(get % "name"))))}]]))
+  (fn [{:strs [id title runtime budget revenue keywords genres release_date] :as row}]
+    [[:crux.tx/put
+      {:crux.db/id (keyword (name 'tmdb) (str "movie-" id))
+       :tmdb/type :movie
+       :tmdb.movie/id (Long/parseLong id)
+       :tmdb.movie/title title
+       :tmdb.movie/budget (some-> budget Long/parseLong)
+       :tmdb.movie/revenue (some-> revenue Long/parseLong)
+       :tmdb.movie/keywords (->> (json/read-value keywords)
+                                 (into #{} (map #(get % "name"))))
+       :tmdb.movie/genres (->> (json/read-value genres)
+                               (into #{} (map #(get % "name"))))}
+      (when-not (empty? release_date)
+        (instant/read-instant-date release_date))]]))
 
 (defmethod csv-row->ops-fn ["tmdb" "tmdb-movie-metadata" "tmdb_5000_credits.csv"] [_]
   (fn [{:strs [movie_id cast] :as row}]
