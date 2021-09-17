@@ -65,7 +65,3 @@ Then, we can stream the dataset to a local file of Crux transaction ops using:
 ----
 
 Have fun!
-
-== Licence
-
-Distributed under the Eclipse Public License, the same as Clojure.
