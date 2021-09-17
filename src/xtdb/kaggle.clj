@@ -1,6 +1,6 @@
-(ns crux.kaggle
+(ns xtdb.kaggle
   (:require [clj-http.client :as http]
-            [crux.api :as crux]
+            [xtdb.api :as xt]
             [jsonista.core :as json]
             [clojure.java.io :as io]
             [clojure.data.csv :as csv]
@@ -68,8 +68,8 @@
 
 (defmethod csv-row->ops-fn ["tmdb" "tmdb-movie-metadata" "tmdb_5000_movies.csv"] [_]
   (fn [{:strs [id title runtime budget revenue keywords genres release_date] :as row}]
-    [[:crux.tx/put
-      {:crux.db/id (keyword (name 'tmdb) (str "movie-" id))
+    [[::xt/put
+      {:xt/id (keyword (name 'tmdb) (str "movie-" id))
        :tmdb/type :movie
        :tmdb.movie/id (Long/parseLong id)
        :tmdb.movie/title title
@@ -87,15 +87,15 @@
   (fn [{:strs [movie_id cast] :as row}]
     (let [movie-id (Long/parseLong movie_id)]
       (->> (for [{cast-name "name", :strs [credit_id id character]} (json/read-value cast)]
-             [[:crux.tx/put {:crux.db/id (keyword (name 'tmdb) (str "cast-" id))
-                             :tmdb/type :cast
-                             :tmdb.cast/id id
-                             :tmdb.cast/name cast-name}]
-              [:crux.tx/put {:crux.db/id (keyword (name 'tmdb) (str "credit-" credit_id))
-                             :tmdb/type :credit
-                             :tmdb.movie/id (keyword (name 'tmdb) (str "movie-" movie-id))
-                             :tmdb.cast/id (keyword (name 'tmdb) (str "cast-" id))
-                             :tmdb.cast/character character}]])
+             [[::xt/put {:xt/id (keyword (name 'tmdb) (str "cast-" id))
+                         :tmdb/type :cast
+                         :tmdb.cast/id id
+                         :tmdb.cast/name cast-name}]
+              [::xt/put {:xt/id (keyword (name 'tmdb) (str "credit-" credit_id))
+                         :tmdb/type :credit
+                         :tmdb.movie/id (keyword (name 'tmdb) (str "movie-" movie-id))
+                         :tmdb.cast/id (keyword (name 'tmdb) (str "cast-" id))
+                         :tmdb.cast/character character}]])
            (apply concat)))))
 
 (comment
