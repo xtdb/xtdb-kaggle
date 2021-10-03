@@ -84,19 +84,30 @@
         (instant/read-instant-date release_date))]]))
 
 (defmethod csv-row->ops-fn ["tmdb" "tmdb-movie-metadata" "tmdb_5000_credits.csv"] [_]
-  (fn [{:strs [movie_id cast] :as row}]
+  (fn [{:strs [movie_id cast crew] :as row}]
     (let [movie-id (Long/parseLong movie_id)]
-      (->> (for [{cast-name "name", :strs [credit_id id character]} (json/read-value cast)]
-             [[::xt/put {:xt/id (keyword (name 'tmdb) (str "cast-" id))
-                         :tmdb/type :cast
-                         :tmdb.cast/id id
-                         :tmdb.cast/name cast-name}]
-              [::xt/put {:xt/id (keyword (name 'tmdb) (str "credit-" credit_id))
-                         :tmdb/type :credit
-                         :tmdb.movie/id (keyword (name 'tmdb) (str "movie-" movie-id))
-                         :tmdb.cast/id (keyword (name 'tmdb) (str "cast-" id))
-                         :tmdb.cast/character character}]])
-           (apply concat)))))
+      (concat (->> (for [{cast-name "name", :strs [credit_id id character]} (json/read-value cast)]
+                     [[::xt/put {:xt/id (keyword (name 'tmdb) (str "person-" id))
+                                 :tmdb/type :person
+                                 :tmdb.person/id id
+                                 :tmdb.person/name cast-name}]
+                      [::xt/put {:xt/id (keyword (name 'tmdb) (str "cast-credit-" credit_id))
+                                 :tmdb/type :cast-credit
+                                 :tmdb.movie/id (keyword (name 'tmdb) (str "movie-" movie-id))
+                                 :tmdb.person/id (keyword (name 'tmdb) (str "person-" id))
+                                 :tmdb.cast/character character}]])
+                   (apply concat))
+              (->> (for [{crew-name "name", :strs [credit_id id job]} (json/read-value crew)]
+                     [[::xt/put {:xt/id (keyword (name 'tmdb) (str "person-" id))
+                                 :tmdb/type :person
+                                 :tmdb.person/id id
+                                 :tmdb.person/name crew-name}]
+                      [::xt/put {:xt/id (keyword (name 'tmdb) (str "crew-credit-" credit_id))
+                                 :tmdb/type :crew-credit
+                                 :tmdb.movie/id (keyword (name 'tmdb) (str "movie-" movie-id))
+                                 :tmdb.person/id (keyword (name 'tmdb) (str "person-" id))
+                                 :tmdb.crew/job job}]])
+                   (apply concat))))))
 
 (comment
   (->> (dataset->ops {:owner-slug "tmdb", :dataset-slug "tmdb-movie-metadata"})
